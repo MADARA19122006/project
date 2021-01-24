@@ -8,7 +8,6 @@ import tytyty
 class Wall(pygame.sprite.Sprite):
     def __init__(self, pos_x, pos_y):
         super().__init__(walls_group, all_sprites)
-
         self.image = pygame.image.load('data/box.png')
         self.rect = self.image.get_rect().move(
             tile_width * pos_x, tile_height * pos_y)
@@ -49,6 +48,31 @@ class Enemy(pygame.sprite.Sprite):
         pygame.draw.rect(self.image, (255, 0, 0), (80 - 50, 80 - 60, 99, 20))
         pygame.draw.rect(self.image, (0, 255, 0),
                          (80 - 50, 80 - 60, 33 * self.health, 20))
+
+
+class Tank_bullet(pygame.sprite.Sprite):
+    def __init__(self, x, y, x1, y1):
+        super().__init__(bullet_group, all_sprites)
+        self.x = x
+        self.y = y
+        self.x1 = x1
+        self.y1 = y1
+        self.image = pygame.Surface((20, 20))
+        self.image.fill((255, 255, 255))
+        self.image.set_colorkey((255, 255, 255))
+        self.rect = self.image.get_rect()
+        pygame.draw.circle(self.image, (0, 0, 0), (10, 10), 10)
+        self.ang_rad = math.atan2(self.y1 - self.y, self.x1 - self.x)
+
+    def update(self):
+        self.x += math.cos(self.ang_rad) * 20
+        self.y += math.sin(self.ang_rad) * 20
+        self.rect.x = self.x - 10 + dx
+        self.rect.y = self.y - 10 + dy
+        if pygame.sprite.spritecollideany(self, walls_group):
+            print('DEL')
+            bullet_group.remove(self)
+            print(bullet_group)
 
 
 def draw_tank():
@@ -92,10 +116,8 @@ def load_level(filename):
     # читаем уровень, убирая символы перевода строки
     with open(filename, 'r') as mapFile:
         level_map = [line.strip() for line in mapFile]
-
     # и подсчитываем максимальную длину
     max_width = max(map(len, level_map))
-
     # дополняем каждую строку пустыми клетками ('.')
     return list(map(lambda x: x.ljust(max_width, '.'), level_map))
 
@@ -109,11 +131,9 @@ def generate_level(level):
             elif level[y][x] == '@':
                 tx = x * tile_width
                 ty = y * tile_height
-
     # генерим врагов
     for i in range(0):  # число врагов
         Enemy()
-
     # вернем координаты танка
     return tx, ty
 
@@ -125,6 +145,9 @@ def draw():
     for el in enemy_list:
         el.draw()
         screen.blit(el.image, (el.x - 80 + dx, el.y - 80 + dy))
+    draw_tank()
+    bullet_group.draw(screen)
+    draw_scope(pos1)
 
 
 def draw_scope(pos):
@@ -157,6 +180,7 @@ if __name__ == '__main__':
     all_sprites = pygame.sprite.Group()
     walls_group = pygame.sprite.Group()
     enemy_group = pygame.sprite.Group()
+    bullet_group = pygame.sprite.Group()
     tile_width = tile_height = 50
     board = (4000, 2000)  # размер игрового поля
     enemy_list = []  # список врагов
@@ -180,15 +204,17 @@ if __name__ == '__main__':
                 pos = (event.pos[0] - dx, event.pos[1] - dy)
                 pos1 = event.pos
             if event.type == pygame.MOUSEBUTTONDOWN:
-                pass
+                Tank_bullet(tank_x, tank_y, event.pos[0] - dx, event.pos[1] - dy)
             if event.type == pygame.KEYDOWN:
                 key.append(event.key)
             elif event.type == pygame.KEYUP:
                 del key[key.index(event.key)]
         move_tank(key)
-        draw_tank()
+
+        bullet_group.update()
         draw()
-        draw_scope(pos1)
+
         pygame.display.flip()
         delay = clock.tick(50)
+
     pygame.quit()
