@@ -36,7 +36,7 @@ class Enemy(pygame.sprite.Sprite):
 
     def draw(self):
         self.image.fill((255, 255, 255))
-        ang_rad = math.atan2(tank_x - self.x, tank_y - self.y)
+        ang_rad = math.atan2(tank_y - self.y, tank_x - self.x)
         x1 = 80 + math.cos(ang_rad) * 80
         y1 = 80 + math.sin(ang_rad) * 80
         pygame.draw.polygon(self.image, (0, 0, 0),
@@ -67,12 +67,15 @@ class Tank_bullet(pygame.sprite.Sprite):
     def update(self):
         self.x += math.cos(self.ang_rad) * 20
         self.y += math.sin(self.ang_rad) * 20
-        self.rect.x = self.x - 10 + dx
-        self.rect.y = self.y - 10 + dy
+        self.rect.x = self.x - 10
+        self.rect.y = self.y - 10
+        print(self.rect.x, self.rect.y)
         if pygame.sprite.spritecollideany(self, walls_group):
             print('DEL')
             bullet_group.remove(self)
             print(bullet_group)
+        self.rect.x = self.x - 10 + dx
+        self.rect.y = self.y - 10 + dy
 
 
 def draw_tank():
@@ -92,26 +95,33 @@ def draw_tank():
 
 
 def move_tank(key):
-    global tank_x, tank_y
+    global tank_x, tank_y, pos
     x = tank_x
     y = tank_y
+    p = pos
     for i in range(len(key)):
         if key[i] == pygame.K_d:
             tank_x += 10
+            pos = (pos[0] + 10, pos[1])
         elif key[i] == pygame.K_a:
             tank_x -= 10
+            pos = (pos[0] - 10, pos[1])
         elif key[i] == pygame.K_w:
             tank_y -= 10
+            pos = (pos[0], pos[1] - 10)
         elif key[i] == pygame.K_s:
             tank_y += 10
+            pos = (pos[0], pos[1] + 10)
         tank_sprite.rect.x = tank_x - 30
         tank_sprite.rect.y = tank_y - 30
         if pygame.sprite.spritecollide(tank_sprite, walls_group, False):
             tank_x = x
             tank_y = y
+            pos = p
         else:
             x = tank_x
             y = tank_y
+            p = pos
 
 
 def load_level(filename):
@@ -187,6 +197,8 @@ if __name__ == '__main__':
     tile_width = tile_height = 50
     board = (4000, 2000)  # размер игрового поля
     enemy_list = []  # список врагов
+    for i in range(3):
+        enemy_list.append(Enemy())
     fixed = pygame.Surface(board, pygame.SRCALPHA, 32)
     tank_x, tank_y = generate_level(load_level('level1.txt'))  # изменить имя файла
     walls_group.draw(fixed)
