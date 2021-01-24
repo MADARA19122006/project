@@ -104,11 +104,14 @@ def move_tank(key):
             tank_y -= 10
         elif key[i] == pygame.K_s:
             tank_y += 10
-    tank_sprite.rect.x = tank_x - 30
-    tank_sprite.rect.y = tank_y - 30
-    if pygame.sprite.spritecollide(tank_sprite, walls_group, False):
-        tank_x = x
-        tank_y = y
+        tank_sprite.rect.x = tank_x - 30
+        tank_sprite.rect.y = tank_y - 30
+        if pygame.sprite.spritecollide(tank_sprite, walls_group, False):
+            tank_x = x
+            tank_y = y
+        else:
+            x = tank_x
+            y = tank_y
 
 
 def load_level(filename):
