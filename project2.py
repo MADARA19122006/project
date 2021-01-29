@@ -9,8 +9,7 @@ class Wall(pygame.sprite.Sprite):
     def __init__(self, pos_x, pos_y):
         super().__init__(walls_group, all_sprites)
         self.image = pygame.image.load('data/box.png')
-        self.rect = self.image.get_rect().move(
-            tile_width * pos_x, tile_height * pos_y)
+        self.rect = self.image.get_rect().move(tile_width * pos_x, tile_height * pos_y)
 
 
 class Enemy(pygame.sprite.Sprite):
@@ -19,12 +18,15 @@ class Enemy(pygame.sprite.Sprite):
         self.image = pygame.Surface((160, 160))
         self.image.set_colorkey((255, 255, 255))
         self.rect = self.image.get_rect()
+        self.radius = 30
         self.rect.x = random.randint(0, board[0] - 161)
         self.rect.y = random.randint(0, board[1] - 161)
-        while pygame.sprite.spritecollideany(self, walls_group) or pygame.sprite.spritecollideany(
-                self, enemy_group):  # добавить пересечение с игроком
+        while pygame.sprite.spritecollide(self, walls_group, False, collided=collision) or pygame.\
+                sprite.spritecollideany(self, enemy_group, pygame.sprite.collide_circle_ratio(1)):
             self.rect.x = random.randint(0, board[0] - 161)
             self.rect.y = random.randint(0, board[0] - 161)
+            if pygame.sprite.spritecollideany(self, walls_group, collided=collision):
+                print('000')
         self.health = 3
         self.x = self.rect.x + 80
         self.y = self.rect.y + 80
@@ -35,6 +37,9 @@ class Enemy(pygame.sprite.Sprite):
         pass
 
     def draw(self):
+        if self.health <= 0:
+            enemy_group.remove(self)
+            del enemy_list[enemy_list.index(self)]
         self.image.fill((255, 255, 255))
         ang_rad = math.atan2(tank_y - self.y, tank_x - self.x)
         x1 = 80 + math.cos(ang_rad) * 80
@@ -65,32 +70,37 @@ class Tank_bullet(pygame.sprite.Sprite):
         self.ang_rad = math.atan2(self.y1 - self.y, self.x1 - self.x)
 
     def update(self):
-        self.x += math.cos(self.ang_rad) * 20
-        self.y += math.sin(self.ang_rad) * 20
+        self.x += math.cos(self.ang_rad) * 50
+        self.y += math.sin(self.ang_rad) * 50
         self.rect.x = self.x - 10
         self.rect.y = self.y - 10
-        print(self.rect.x, self.rect.y)
         if pygame.sprite.spritecollideany(self, walls_group):
-            print('DEL')
             bullet_group.remove(self)
-            print(bullet_group)
+        if pygame.sprite.spritecollideany(self, enemy_group):
+            pygame.sprite.spritecollideany(self, enemy_group).health -= 1
+            bullet_group.remove(self)
         self.rect.x = self.x - 10 + dx
         self.rect.y = self.y - 10 + dy
 
 
+def collision(sprite1, sprite2):
+    return abs(sprite1.rect.x + 80 - sprite2.rect.x - 25) < 55 and abs(
+        sprite1.rect.y + 80 - sprite2.rect.y - 25) < 55
+
+
 def draw_tank():
-    tank_surf.fill((255, 255, 255))
+    tank_sprite.image.fill((255, 255, 255))
     ang_rad = math.atan2(pos[1] - tank_y, pos[0] - tank_x)
     x1 = 80 + math.cos(ang_rad) * 80
     y1 = 80 + math.sin(ang_rad) * 80
-    pygame.draw.polygon(tank_surf, (0, 0, 0),
+    pygame.draw.polygon(tank_sprite.image, (0, 0, 0),
                         ((80 + 15 * math.sin(ang_rad), 80 - 15 * math.cos(ang_rad)),
                          (80 - 15 * math.sin(ang_rad), 80 + 15 * math.cos(ang_rad)),
                          (x1 - 15 * math.sin(ang_rad), y1 + 15 * math.cos(ang_rad)),
                          (x1 + 15 * math.sin(ang_rad), y1 - 15 * math.cos(ang_rad))))
-    pygame.draw.circle(tank_surf, (255, 0, 0), (80, 80), 30)
-    pygame.draw.rect(tank_surf, (255, 0, 0), (80 - 50, 80 - 60, 99, 20))
-    pygame.draw.rect(tank_surf, (0, 255, 0),
+    pygame.draw.circle(tank_sprite.image, (255, 0, 0), (80, 80), 30)
+    pygame.draw.rect(tank_sprite.image, (255, 0, 0), (80 - 50, 80 - 60, 99, 20))
+    pygame.draw.rect(tank_sprite.image, (0, 255, 0),
                      (80 - 50, 80 - 60, 33 * tank_health, 20))
 
 
@@ -112,9 +122,12 @@ def move_tank(key):
         elif key[i] == pygame.K_s:
             tank_y += 10
             pos = (pos[0], pos[1] + 10)
-        tank_sprite.rect.x = tank_x - 30
-        tank_sprite.rect.y = tank_y - 30
-        if pygame.sprite.spritecollide(tank_sprite, walls_group, False):
+        tank_sprite.rect.x = tank_x - 80
+        tank_sprite.rect.y = tank_y - 80
+        if pygame.sprite.spritecollide(tank_sprite, walls_group, False, collided=collision) \
+                or pygame.sprite.spritecollide(tank_sprite, enemy_group, False,
+                                               pygame.sprite.collide_circle_ratio(1)):
+
             tank_x = x
             tank_y = y
             pos = p
@@ -144,9 +157,7 @@ def generate_level(level):
             elif level[y][x] == '@':
                 tx = x * tile_width
                 ty = y * tile_height
-    # генерим врагов
-    for i in range(0):  # число врагов
-        Enemy()
+
     # вернем координаты танка
     return tx, ty
 
@@ -154,7 +165,7 @@ def generate_level(level):
 def draw():
     screen.fill((196, 98, 16))
     screen.blit(fixed, (dx, dy))
-    screen.blit(tank_surf, (screen_size[0] // 2 - 80, screen_size[1] // 2 - 80))
+    screen.blit(tank_sprite.image, (screen_size[0] // 2 - 80, screen_size[1] // 2 - 80))
     for el in enemy_list:
         el.draw()
         screen.blit(el.image, (el.x - 80 + dx, el.y - 80 + dy))
@@ -188,24 +199,26 @@ if __name__ == '__main__':
     clock = pygame.time.Clock()
     reload = pygame.event.custom_type()
     tank_sprite = pygame.sprite.Sprite()
-    tank_sprite.image = pygame.Surface((60, 60))
+    tank_sprite.image = pygame.Surface((160, 160))
+    tank_sprite.image.set_colorkey((255, 255, 255))
     tank_sprite.rect = tank_sprite.image.get_rect()
+    tank_sprite.radius = 30
     all_sprites = pygame.sprite.Group()
     walls_group = pygame.sprite.Group()
     enemy_group = pygame.sprite.Group()
+    time = False
+    pygame.time.set_timer(reload, 3000, True)
     bullet_group = pygame.sprite.Group()
     tile_width = tile_height = 50
     board = (4000, 2000)  # размер игрового поля
     enemy_list = []  # список врагов
-    for i in range(3):
+    for i in range(10):
         enemy_list.append(Enemy())
     fixed = pygame.Surface(board, pygame.SRCALPHA, 32)
     tank_x, tank_y = generate_level(load_level('level1.txt'))  # изменить имя файла
     walls_group.draw(fixed)
     key = []
     tank_health = 3
-    tank_surf = pygame.Surface((160, 160))
-    tank_surf.set_colorkey((255, 255, 255))
     pos = (0, 0)
     pos1 = (0, 0)
     running = True
@@ -213,22 +226,25 @@ if __name__ == '__main__':
         dx = -(tank_x - screen_size[0] // 2)
         dy = -(tank_y - screen_size[1] // 2)
         for event in pygame.event.get():
+            if event.type == reload:
+                time = True
             if event.type == pygame.QUIT:
                 running = False
             if event.type == pygame.MOUSEMOTION:
                 pos = (event.pos[0] - dx, event.pos[1] - dy)
                 pos1 = event.pos
             if event.type == pygame.MOUSEBUTTONDOWN:
-                Tank_bullet(tank_x, tank_y, event.pos[0] - dx, event.pos[1] - dy)
+                if time:
+                    pygame.time.set_timer(reload, 3000, True)
+                    Tank_bullet(tank_x, tank_y, event.pos[0] - dx, event.pos[1] - dy)
+                    time = False
             if event.type == pygame.KEYDOWN:
                 key.append(event.key)
             elif event.type == pygame.KEYUP:
                 del key[key.index(event.key)]
         move_tank(key)
-
         bullet_group.update()
         draw()
-
         pygame.display.flip()
         delay = clock.tick(50)
 
