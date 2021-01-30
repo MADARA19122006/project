@@ -25,13 +25,15 @@ class Enemy(pygame.sprite.Sprite):
                 sprite.spritecollideany(self, enemy_group, pygame.sprite.collide_circle_ratio(1)):
             self.rect.x = random.randint(0, board[0] - 161)
             self.rect.y = random.randint(0, board[0] - 161)
-            if pygame.sprite.spritecollideany(self, walls_group, collided=collision):
-                print('000')
+            pygame.sprite.spritecollideany(self, walls_group, collided=collision)
         self.health = 3
         self.x = self.rect.x + 80
         self.y = self.rect.y + 80
         enemy_group.add(self)
         enemy_list.append(self)
+
+    def shot(self):
+        Tank_bullet(self.rect.x + 80, self.rect.y + 80, tank_x, tank_y, True)
 
     def move(self):
         pass
@@ -56,11 +58,15 @@ class Enemy(pygame.sprite.Sprite):
 
 
 class Tank_bullet(pygame.sprite.Sprite):
-    def __init__(self, x, y, x1, y1):
+    def __init__(self, x, y, x1, y1, enemy=False):
         super().__init__(bullet_group, all_sprites)
         self.x = x
         self.y = y
         self.x1 = x1
+        if enemy:
+            self.enemy = True
+        else:
+            self.enemy = False
         self.y1 = y1
         self.image = pygame.Surface((20, 20))
         self.image.fill((255, 255, 255))
@@ -70,15 +76,22 @@ class Tank_bullet(pygame.sprite.Sprite):
         self.ang_rad = math.atan2(self.y1 - self.y, self.x1 - self.x)
 
     def update(self):
+        global tank_health, running
         self.x += math.cos(self.ang_rad) * 50
         self.y += math.sin(self.ang_rad) * 50
         self.rect.x = self.x - 10
         self.rect.y = self.y - 10
         if pygame.sprite.spritecollideany(self, walls_group):
             bullet_group.remove(self)
-        if pygame.sprite.spritecollideany(self, enemy_group):
-            pygame.sprite.spritecollideany(self, enemy_group).health -= 1
-            bullet_group.remove(self)
+        elif pygame.sprite.spritecollideany(self, enemy_group):
+            if not self.enemy:
+                pygame.sprite.spritecollideany(self, enemy_group).health -= 1
+                bullet_group.remove(self)
+        elif abs(self.x - tank_x) < 30 and abs(self.y - tank_y) < 30:
+            if tank_health > 1:
+                tank_health -= 1
+            else:
+                running = False
         self.rect.x = self.x - 10 + dx
         self.rect.y = self.y - 10 + dy
 
@@ -99,6 +112,7 @@ def draw_tank():
                          (x1 - 15 * math.sin(ang_rad), y1 + 15 * math.cos(ang_rad)),
                          (x1 + 15 * math.sin(ang_rad), y1 - 15 * math.cos(ang_rad))))
     pygame.draw.circle(tank_sprite.image, (255, 0, 0), (80, 80), 30)
+    pygame.draw.circle(tank_sprite.image, (255, 255, 0), (80, 80), r_circle / 100)
     pygame.draw.rect(tank_sprite.image, (255, 0, 0), (80 - 50, 80 - 60, 99, 20))
     pygame.draw.rect(tank_sprite.image, (0, 255, 0),
                      (80 - 50, 80 - 60, 33 * tank_health, 20))
@@ -186,6 +200,7 @@ if __name__ == '__main__':
     zapysk = tytyty.Menu(spisok)
     zapysk.menu()
     pygame.init()
+
     s = pygame.sprite.Group()
     scope = pygame.sprite.Sprite()
     fullname = os.path.join('data', 'прицел2.png')
@@ -193,11 +208,14 @@ if __name__ == '__main__':
     scope.rect = scope.image.get_rect()
     s.add(scope)
     pygame.mouse.set_visible(False)
+
     screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
     screen_size = pygame.display.get_window_size()
     screen.fill((196, 98, 16))
     clock = pygame.time.Clock()
     reload = pygame.event.custom_type()
+    reload_enemy = pygame.event.custom_type()
+    r_circle = 0
     tank_sprite = pygame.sprite.Sprite()
     tank_sprite.image = pygame.Surface((160, 160))
     tank_sprite.image.set_colorkey((255, 255, 255))
@@ -206,8 +224,8 @@ if __name__ == '__main__':
     all_sprites = pygame.sprite.Group()
     walls_group = pygame.sprite.Group()
     enemy_group = pygame.sprite.Group()
-    time = False
-    pygame.time.set_timer(reload, 3000, True)
+    time = True
+    pygame.time.set_timer(reload_enemy, 1000, False)
     bullet_group = pygame.sprite.Group()
     tile_width = tile_height = 50
     board = (4000, 2000)  # размер игрового поля
@@ -216,9 +234,9 @@ if __name__ == '__main__':
         enemy_list.append(Enemy())
     fixed = pygame.Surface(board, pygame.SRCALPHA, 32)
     tank_x, tank_y = generate_level(load_level('level1.txt'))  # изменить имя файла
+    tank_health = 3
     walls_group.draw(fixed)
     key = []
-    tank_health = 3
     pos = (0, 0)
     pos1 = (0, 0)
     running = True
@@ -228,6 +246,9 @@ if __name__ == '__main__':
         for event in pygame.event.get():
             if event.type == reload:
                 time = True
+            elif event.type == reload_enemy:
+                for i in enemy_group:
+                    i.shot()
             if event.type == pygame.QUIT:
                 running = False
             if event.type == pygame.MOUSEMOTION:
@@ -235,6 +256,7 @@ if __name__ == '__main__':
                 pos1 = event.pos
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if time:
+                    r_circle = 0
                     pygame.time.set_timer(reload, 3000, True)
                     Tank_bullet(tank_x, tank_y, event.pos[0] - dx, event.pos[1] - dy)
                     time = False
@@ -247,5 +269,7 @@ if __name__ == '__main__':
         draw()
         pygame.display.flip()
         delay = clock.tick(50)
+        if r_circle < 3000:
+            r_circle += delay
 
     pygame.quit()
